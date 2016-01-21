@@ -1,79 +1,55 @@
 /*
- * libjingle
- * Copyright 2011, Google Inc.
- * Copyright 2011, RTFM, Inc.
+ *  Copyright 2011 The WebRTC Project Authors. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef TALK_P2P_BASE_DTLSTRANSPORTCHANNEL_H_
-#define TALK_P2P_BASE_DTLSTRANSPORTCHANNEL_H_
+#ifndef WEBRTC_P2P_BASE_DTLSTRANSPORTCHANNEL_H_
+#define WEBRTC_P2P_BASE_DTLSTRANSPORTCHANNEL_H_
 
 #include <string>
 #include <vector>
 
-#include "talk/base/buffer.h"
-#include "talk/base/scoped_ptr.h"
-#include "talk/base/sslstreamadapter.h"
-#include "talk/base/stream.h"
-#include "talk/p2p/base/transportchannelimpl.h"
+#include "webrtc/p2p/base/transportchannelimpl.h"
+#include "webrtc/base/buffer.h"
+#include "webrtc/base/bufferqueue.h"
+#include "webrtc/base/scoped_ptr.h"
+#include "webrtc/base/sslstreamadapter.h"
+#include "webrtc/base/stream.h"
 
 namespace cricket {
 
 // A bridge between a packet-oriented/channel-type interface on
 // the bottom and a StreamInterface on the top.
-class StreamInterfaceChannel : public talk_base::StreamInterface,
-                               public sigslot::has_slots<> {
+class StreamInterfaceChannel : public rtc::StreamInterface {
  public:
-  StreamInterfaceChannel(talk_base::Thread* owner, TransportChannel* channel)
-      : channel_(channel),
-        state_(talk_base::SS_OPEN),
-        fifo_(kFifoSize, owner) {
-    fifo_.SignalEvent.connect(this, &StreamInterfaceChannel::OnEvent);
-  }
+  explicit StreamInterfaceChannel(TransportChannel* channel);
 
   // Push in a packet; this gets pulled out from Read().
   bool OnPacketReceived(const char* data, size_t size);
 
   // Implementations of StreamInterface
-  virtual talk_base::StreamState GetState() const { return state_; }
-  virtual void Close() { state_ = talk_base::SS_CLOSED; }
-  virtual talk_base::StreamResult Read(void* buffer, size_t buffer_len,
-                                       size_t* read, int* error);
-  virtual talk_base::StreamResult Write(const void* data, size_t data_len,
-                                        size_t* written, int* error);
+  rtc::StreamState GetState() const override { return state_; }
+  void Close() override { state_ = rtc::SS_CLOSED; }
+  rtc::StreamResult Read(void* buffer,
+                         size_t buffer_len,
+                         size_t* read,
+                         int* error) override;
+  rtc::StreamResult Write(const void* data,
+                          size_t data_len,
+                          size_t* written,
+                          int* error) override;
 
  private:
-  static const size_t kFifoSize = 8192;
-
-  // Forward events
-  virtual void OnEvent(talk_base::StreamInterface* stream, int sig, int err);
-
   TransportChannel* channel_;  // owned by DtlsTransportChannelWrapper
-  talk_base::StreamState state_;
-  talk_base::FifoBuffer fifo_;
+  rtc::StreamState state_;
+  rtc::BufferQueue packets_;
 
-  DISALLOW_COPY_AND_ASSIGN(StreamInterfaceChannel);
+  RTC_DISALLOW_COPY_AND_ASSIGN(StreamInterfaceChannel);
 };
 
 
@@ -105,83 +81,76 @@ class StreamInterfaceChannel : public talk_base::StreamInterface,
 //     which translates it into packet writes on channel_.
 class DtlsTransportChannelWrapper : public TransportChannelImpl {
  public:
-    enum State {
-      STATE_NONE,      // No state or rejected.
-      STATE_OFFERED,   // Our identity has been set.
-      STATE_ACCEPTED,  // The other side sent a fingerprint.
-      STATE_STARTED,   // We are negotiating.
-      STATE_OPEN,      // Negotiation complete.
-      STATE_CLOSED     // Connection closed.
-    };
-
   // The parameters here are:
   // transport -- the DtlsTransport that created us
   // channel -- the TransportChannel we are wrapping
   DtlsTransportChannelWrapper(Transport* transport,
                               TransportChannelImpl* channel);
-  virtual ~DtlsTransportChannelWrapper();
+  ~DtlsTransportChannelWrapper() override;
 
-  virtual void SetIceRole(IceRole role) {
-    channel_->SetIceRole(role);
-  }
-  virtual IceRole GetIceRole() const {
-    return channel_->GetIceRole();
-  }
-  virtual size_t GetConnectionCount() const {
-    return channel_->GetConnectionCount();
-  }
-  virtual bool SetLocalIdentity(talk_base::SSLIdentity *identity);
-  virtual bool GetLocalIdentity(talk_base::SSLIdentity** identity) const;
+  void SetIceRole(IceRole role) override { channel_->SetIceRole(role); }
+  IceRole GetIceRole() const override { return channel_->GetIceRole(); }
+  bool SetLocalCertificate(
+      const rtc::scoped_refptr<rtc::RTCCertificate>& certificate) override;
+  rtc::scoped_refptr<rtc::RTCCertificate> GetLocalCertificate() const override;
 
-  virtual bool SetRemoteFingerprint(const std::string& digest_alg,
-                                    const uint8* digest,
-                                    size_t digest_len);
-  virtual bool IsDtlsActive() const { return dtls_state_ != STATE_NONE; }
+  bool SetRemoteFingerprint(const std::string& digest_alg,
+                            const uint8_t* digest,
+                            size_t digest_len) override;
+
+  // Returns false if no local certificate was set, or if the peer doesn't
+  // support DTLS.
+  bool IsDtlsActive() const override { return dtls_active_; }
 
   // Called to send a packet (via DTLS, if turned on).
-  virtual int SendPacket(const char* data, size_t size,
-                         const talk_base::PacketOptions& options,
-                         int flags);
+  int SendPacket(const char* data,
+                 size_t size,
+                 const rtc::PacketOptions& options,
+                 int flags) override;
 
   // TransportChannel calls that we forward to the wrapped transport.
-  virtual int SetOption(talk_base::Socket::Option opt, int value) {
+  int SetOption(rtc::Socket::Option opt, int value) override {
     return channel_->SetOption(opt, value);
   }
-  virtual int GetError() {
-    return channel_->GetError();
+  bool GetOption(rtc::Socket::Option opt, int* value) override {
+    return channel_->GetOption(opt, value);
   }
-  virtual bool GetStats(ConnectionInfos* infos) {
+  int GetError() override { return channel_->GetError(); }
+  bool GetStats(ConnectionInfos* infos) override {
     return channel_->GetStats(infos);
   }
-  virtual const std::string SessionId() const {
-    return channel_->SessionId();
-  }
+  const std::string SessionId() const override { return channel_->SessionId(); }
+
+  virtual bool SetSslMaxProtocolVersion(rtc::SSLProtocolVersion version);
 
   // Set up the ciphers to use for DTLS-SRTP. If this method is not called
   // before DTLS starts, or |ciphers| is empty, SRTP keys won't be negotiated.
   // This method should be called before SetupDtls.
-  virtual bool SetSrtpCiphers(const std::vector<std::string>& ciphers);
+  bool SetSrtpCryptoSuites(const std::vector<int>& ciphers) override;
 
   // Find out which DTLS-SRTP cipher was negotiated
-  virtual bool GetSrtpCipher(std::string* cipher);
+  bool GetSrtpCryptoSuite(int* cipher) override;
 
-  virtual bool GetSslRole(talk_base::SSLRole* role) const;
-  virtual bool SetSslRole(talk_base::SSLRole role);
+  bool GetSslRole(rtc::SSLRole* role) const override;
+  bool SetSslRole(rtc::SSLRole role) override;
+
+  // Find out which DTLS cipher was negotiated
+  bool GetSslCipherSuite(int* cipher) override;
 
   // Once DTLS has been established, this method retrieves the certificate in
   // use by the remote peer, for use in external identity verification.
-  virtual bool GetRemoteCertificate(talk_base::SSLCertificate** cert) const;
+  bool GetRemoteSSLCertificate(rtc::SSLCertificate** cert) const override;
 
   // Once DTLS has established (i.e., this channel is writable), this method
   // extracts the keys negotiated during the DTLS handshake, for use in external
   // encryption. DTLS-SRTP uses this to extract the needed SRTP keys.
   // See the SSLStreamAdapter documentation for info on the specific parameters.
-  virtual bool ExportKeyingMaterial(const std::string& label,
-                                    const uint8* context,
-                                    size_t context_len,
-                                    bool use_context,
-                                    uint8* result,
-                                    size_t result_len) {
+  bool ExportKeyingMaterial(const std::string& label,
+                            const uint8_t* context,
+                            size_t context_len,
+                            bool use_context,
+                            uint8_t* result,
+                            size_t result_len) override {
     return (dtls_.get()) ? dtls_->ExportKeyingMaterial(label, context,
                                                        context_len,
                                                        use_context,
@@ -190,38 +159,40 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
   }
 
   // TransportChannelImpl calls.
-  virtual Transport* GetTransport() {
-    return transport_;
+  Transport* GetTransport() override { return transport_; }
+
+  TransportChannelState GetState() const override {
+    return channel_->GetState();
   }
-  virtual void SetIceTiebreaker(uint64 tiebreaker) {
+  void SetIceTiebreaker(uint64_t tiebreaker) override {
     channel_->SetIceTiebreaker(tiebreaker);
   }
-  virtual bool GetIceProtocolType(IceProtocolType* type) const {
-    return channel_->GetIceProtocolType(type);
-  }
-  virtual void SetIceProtocolType(IceProtocolType type) {
-    channel_->SetIceProtocolType(type);
-  }
-  virtual void SetIceCredentials(const std::string& ice_ufrag,
-                                 const std::string& ice_pwd) {
+  void SetIceCredentials(const std::string& ice_ufrag,
+                         const std::string& ice_pwd) override {
     channel_->SetIceCredentials(ice_ufrag, ice_pwd);
   }
-  virtual void SetRemoteIceCredentials(const std::string& ice_ufrag,
-                                       const std::string& ice_pwd) {
+  void SetRemoteIceCredentials(const std::string& ice_ufrag,
+                               const std::string& ice_pwd) override {
     channel_->SetRemoteIceCredentials(ice_ufrag, ice_pwd);
   }
-  virtual void SetRemoteIceMode(IceMode mode) {
+  void SetRemoteIceMode(IceMode mode) override {
     channel_->SetRemoteIceMode(mode);
   }
 
-  virtual void Connect();
-  virtual void Reset();
+  void Connect() override;
 
-  virtual void OnSignalingReady() {
-    channel_->OnSignalingReady();
+  void MaybeStartGathering() override { channel_->MaybeStartGathering(); }
+
+  IceGatheringState gathering_state() const override {
+    return channel_->gathering_state();
   }
-  virtual void OnCandidate(const Candidate& candidate) {
-    channel_->OnCandidate(candidate);
+
+  void AddRemoteCandidate(const Candidate& candidate) override {
+    channel_->AddRemoteCandidate(candidate);
+  }
+
+  void SetIceConfig(const IceConfig& config) override {
+    channel_->SetIceConfig(config);
   }
 
   // Needed by DtlsTransport.
@@ -231,34 +202,39 @@ class DtlsTransportChannelWrapper : public TransportChannelImpl {
   void OnReadableState(TransportChannel* channel);
   void OnWritableState(TransportChannel* channel);
   void OnReadPacket(TransportChannel* channel, const char* data, size_t size,
-                    const talk_base::PacketTime& packet_time, int flags);
+                    const rtc::PacketTime& packet_time, int flags);
+  void OnSentPacket(TransportChannel* channel,
+                    const rtc::SentPacket& sent_packet);
   void OnReadyToSend(TransportChannel* channel);
-  void OnDtlsEvent(talk_base::StreamInterface* stream_, int sig, int err);
+  void OnReceivingState(TransportChannel* channel);
+  void OnDtlsEvent(rtc::StreamInterface* stream_, int sig, int err);
   bool SetupDtls();
   bool MaybeStartDtls();
   bool HandleDtlsPacket(const char* data, size_t size);
-  void OnRequestSignaling(TransportChannelImpl* channel);
-  void OnCandidateReady(TransportChannelImpl* channel, const Candidate& c);
-  void OnCandidatesAllocationDone(TransportChannelImpl* channel);
+  void OnGatheringState(TransportChannelImpl* channel);
+  void OnCandidateGathered(TransportChannelImpl* channel, const Candidate& c);
   void OnRoleConflict(TransportChannelImpl* channel);
   void OnRouteChange(TransportChannel* channel, const Candidate& candidate);
   void OnConnectionRemoved(TransportChannelImpl* channel);
+  void Reconnect();
 
   Transport* transport_;  // The transport_ that created us.
-  talk_base::Thread* worker_thread_;  // Everything should occur on this thread.
-  TransportChannelImpl* channel_;  // Underlying channel, owned by transport_.
-  talk_base::scoped_ptr<talk_base::SSLStreamAdapter> dtls_;  // The DTLS stream
+  rtc::Thread* worker_thread_;  // Everything should occur on this thread.
+  // Underlying channel, owned by transport_.
+  TransportChannelImpl* const channel_;
+  rtc::scoped_ptr<rtc::SSLStreamAdapter> dtls_;  // The DTLS stream
   StreamInterfaceChannel* downward_;  // Wrapper for channel_, owned by dtls_.
-  std::vector<std::string> srtp_ciphers_;  // SRTP ciphers to use with DTLS.
-  State dtls_state_;
-  talk_base::SSLIdentity* local_identity_;
-  talk_base::SSLRole ssl_role_;
-  talk_base::Buffer remote_fingerprint_value_;
+  std::vector<int> srtp_ciphers_;     // SRTP ciphers to use with DTLS.
+  bool dtls_active_ = false;
+  rtc::scoped_refptr<rtc::RTCCertificate> local_certificate_;
+  rtc::SSLRole ssl_role_;
+  rtc::SSLProtocolVersion ssl_max_version_;
+  rtc::Buffer remote_fingerprint_value_;
   std::string remote_fingerprint_algorithm_;
 
-  DISALLOW_COPY_AND_ASSIGN(DtlsTransportChannelWrapper);
+  RTC_DISALLOW_COPY_AND_ASSIGN(DtlsTransportChannelWrapper);
 };
 
 }  // namespace cricket
 
-#endif  // TALK_P2P_BASE_DTLSTRANSPORTCHANNEL_H_
+#endif  // WEBRTC_P2P_BASE_DTLSTRANSPORTCHANNEL_H_

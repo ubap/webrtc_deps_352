@@ -1,40 +1,23 @@
 /*
- * libjingle
- * Copyright 2004, Google Inc.
+ *  Copyright 2004 The WebRTC Project Authors. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef TALK_BASE_STRINGENCODE_H_
-#define TALK_BASE_STRINGENCODE_H_
+#ifndef WEBRTC_BASE_STRINGENCODE_H_
+#define WEBRTC_BASE_STRINGENCODE_H_
 
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 
-#include "talk/base/common.h"
+#include "webrtc/base/checks.h"
 
-namespace talk_base {
+namespace rtc {
 
 //////////////////////////////////////////////////////////////////////
 // String Encoding Utilities
@@ -112,6 +95,7 @@ size_t hex_encode_with_delimiter(char* buffer, size_t buflen,
                                  char delimiter);
 
 // Helper functions for hex_encode.
+std::string hex_encode(const std::string& str);
 std::string hex_encode(const char* source, size_t srclen);
 std::string hex_encode_with_delimiter(const char* source, size_t srclen,
                                       char delimiter);
@@ -162,6 +146,11 @@ size_t split(const std::string& source, char delimiter,
 size_t tokenize(const std::string& source, char delimiter,
                 std::vector<std::string>* fields);
 
+// Tokenize, including the empty tokens.
+size_t tokenize_with_empty_tokens(const std::string& source,
+                                  char delimiter,
+                                  std::vector<std::string>* fields);
+
 // Tokenize and append the tokens to fields. Return the new size of fields.
 size_t tokenize_append(const std::string& source, char delimiter,
                        std::vector<std::string>* fields);
@@ -176,6 +165,14 @@ size_t tokenize_append(const std::string& source, char delimiter,
 size_t tokenize(const std::string& source, char delimiter, char start_mark,
                 char end_mark, std::vector<std::string>* fields);
 
+// Extract the first token from source as separated by delimiter, with
+// duplicates of delimiter ignored. Return false if the delimiter could not be
+// found, otherwise return true.
+bool tokenize_first(const std::string& source,
+                    const char delimiter,
+                    std::string* token,
+                    std::string* rest);
+
 // Safe sprintf to std::string
 //void sprintf(std::string& value, size_t maxlen, const char * format, ...)
 //     PRINTF_FORMAT(3);
@@ -184,7 +181,7 @@ size_t tokenize(const std::string& source, char delimiter, char start_mark,
 
 template <class T>
 static bool ToString(const T &t, std::string* s) {
-  ASSERT(NULL != s);
+  RTC_DCHECK(s);
   std::ostringstream oss;
   oss << std::boolalpha << t;
   *s = oss.str();
@@ -193,7 +190,7 @@ static bool ToString(const T &t, std::string* s) {
 
 template <class T>
 static bool FromString(const std::string& s, T* t) {
-  ASSERT(NULL != t);
+  RTC_DCHECK(t);
   std::istringstream iss(s);
   iss >> std::boolalpha >> *t;
   return !iss.fail();
@@ -222,6 +219,6 @@ char make_char_safe_for_filename(char c);
 
 //////////////////////////////////////////////////////////////////////
 
-}  // namespace talk_base
+}  // namespace rtc
 
-#endif  // TALK_BASE_STRINGENCODE_H__
+#endif  // WEBRTC_BASE_STRINGENCODE_H__

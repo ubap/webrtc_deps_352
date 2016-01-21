@@ -1,62 +1,44 @@
 /*
- * libjingle
- * Copyright 2004--2005, Google Inc.
+ *  Copyright 2004 The WebRTC Project Authors. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef TALK_BASE_ASYNCPACKETSOCKET_H_
-#define TALK_BASE_ASYNCPACKETSOCKET_H_
+#ifndef WEBRTC_BASE_ASYNCPACKETSOCKET_H_
+#define WEBRTC_BASE_ASYNCPACKETSOCKET_H_
 
-#include "talk/base/dscp.h"
-#include "talk/base/sigslot.h"
-#include "talk/base/socket.h"
-#include "talk/base/timeutils.h"
+#include "webrtc/base/dscp.h"
+#include "webrtc/base/sigslot.h"
+#include "webrtc/base/socket.h"
+#include "webrtc/base/timeutils.h"
 
-namespace talk_base {
+namespace rtc {
 
 // This structure holds the info needed to update the packet send time header
 // extension, including the information needed to update the authentication tag
 // after changing the value.
 struct PacketTimeUpdateParams {
-  PacketTimeUpdateParams()
-      : rtp_sendtime_extension_id(-1), srtp_auth_tag_len(-1),
-        srtp_packet_index(-1) {
-  }
+  PacketTimeUpdateParams();
+  ~PacketTimeUpdateParams();
 
   int rtp_sendtime_extension_id;    // extension header id present in packet.
   std::vector<char> srtp_auth_key;  // Authentication key.
   int srtp_auth_tag_len;            // Authentication tag length.
-  int64 srtp_packet_index;          // Required for Rtp Packet authentication.
+  int64_t srtp_packet_index;        // Required for Rtp Packet authentication.
 };
 
 // This structure holds meta information for the packet which is about to send
 // over network.
 struct PacketOptions {
-  PacketOptions() : dscp(DSCP_NO_CHANGE) {}
-  explicit PacketOptions(DiffServCodePoint dscp) : dscp(dscp) {}
+  PacketOptions() : dscp(DSCP_NO_CHANGE), packet_id(-1) {}
+  explicit PacketOptions(DiffServCodePoint dscp) : dscp(dscp), packet_id(-1) {}
 
   DiffServCodePoint dscp;
+  int packet_id;  // 16 bits, -1 represents "not set".
   PacketTimeUpdateParams packet_time_params;
 };
 
@@ -64,19 +46,19 @@ struct PacketOptions {
 // received by socket.
 struct PacketTime {
   PacketTime() : timestamp(-1), not_before(-1) {}
-  PacketTime(int64 timestamp, int64 not_before)
-      : timestamp(timestamp), not_before(not_before) {
-  }
+  PacketTime(int64_t timestamp, int64_t not_before)
+      : timestamp(timestamp), not_before(not_before) {}
 
-  int64 timestamp;  // Receive time after socket delivers the data.
-  int64 not_before; // Earliest possible time the data could have arrived,
-                    // indicating the potential error in the |timestamp| value,
-                    // in case the system, is busy. For example, the time of
-                    // the last select() call.
-                    // If unknown, this value will be set to zero.
+  int64_t timestamp;   // Receive time after socket delivers the data.
+
+  // Earliest possible time the data could have arrived, indicating the
+  // potential error in the |timestamp| value, in case the system, is busy. For
+  // example, the time of the last select() call.
+  // If unknown, this value will be set to zero.
+  int64_t not_before;
 };
 
-inline PacketTime CreatePacketTime(int64 not_before) {
+inline PacketTime CreatePacketTime(int64_t not_before) {
   return PacketTime(TimeMicros(), not_before);
 }
 
@@ -92,8 +74,8 @@ class AsyncPacketSocket : public sigslot::has_slots<> {
     STATE_CONNECTED
   };
 
-  AsyncPacketSocket() { }
-  virtual ~AsyncPacketSocket() { }
+  AsyncPacketSocket();
+  ~AsyncPacketSocket() override;
 
   // Returns current local address. Address may be set to NULL if the
   // socket is not bound yet (GetState() returns STATE_BINDING).
@@ -128,6 +110,9 @@ class AsyncPacketSocket : public sigslot::has_slots<> {
                    const SocketAddress&,
                    const PacketTime&> SignalReadPacket;
 
+  // Emitted each time a packet is sent.
+  sigslot::signal2<AsyncPacketSocket*, const SentPacket&> SignalSentPacket;
+
   // Emitted when the socket is currently able to send.
   sigslot::signal1<AsyncPacketSocket*> SignalReadyToSend;
 
@@ -149,9 +134,9 @@ class AsyncPacketSocket : public sigslot::has_slots<> {
   sigslot::signal2<AsyncPacketSocket*, AsyncPacketSocket*> SignalNewConnection;
 
  private:
-  DISALLOW_EVIL_CONSTRUCTORS(AsyncPacketSocket);
+  RTC_DISALLOW_COPY_AND_ASSIGN(AsyncPacketSocket);
 };
 
-}  // namespace talk_base
+}  // namespace rtc
 
-#endif  // TALK_BASE_ASYNCPACKETSOCKET_H_
+#endif  // WEBRTC_BASE_ASYNCPACKETSOCKET_H_

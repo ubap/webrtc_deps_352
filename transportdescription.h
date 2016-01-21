@@ -1,41 +1,24 @@
 /*
- * libjingle
- * Copyright 2012, The Libjingle Authors.
+ *  Copyright 2012 The WebRTC Project Authors. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef TALK_P2P_BASE_TRANSPORTDESCRIPTION_H_
-#define TALK_P2P_BASE_TRANSPORTDESCRIPTION_H_
+#ifndef WEBRTC_P2P_BASE_TRANSPORTDESCRIPTION_H_
+#define WEBRTC_P2P_BASE_TRANSPORTDESCRIPTION_H_
 
 #include <algorithm>
 #include <string>
 #include <vector>
 
-#include "talk/base/scoped_ptr.h"
-#include "talk/base/sslfingerprint.h"
-#include "talk/p2p/base/candidate.h"
-#include "talk/p2p/base/constants.h"
+#include "webrtc/p2p/base/candidate.h"
+#include "webrtc/p2p/base/constants.h"
+#include "webrtc/base/scoped_ptr.h"
+#include "webrtc/base/sslfingerprint.h"
 
 namespace cricket {
 
@@ -51,16 +34,6 @@ enum SecurePolicy {
   SEC_ENABLED,
   SEC_REQUIRED
 };
-
-// The transport protocol we've elected to use.
-enum TransportProtocol {
-  ICEPROTO_GOOGLE,  // Google version of ICE protocol.
-  ICEPROTO_HYBRID,  // ICE, but can fall back to the Google version.
-  ICEPROTO_RFC5245  // Standard RFC 5245 version of ICE.
-};
-// The old name for TransportProtocol.
-// TODO(juberti): remove this.
-typedef TransportProtocol IceProtocolType;
 
 // Whether our side of the call is driving the negotiation, or the other side.
 enum IceRole {
@@ -99,35 +72,32 @@ bool ConnectionRoleToString(const ConnectionRole& role, std::string* role_str);
 typedef std::vector<Candidate> Candidates;
 
 struct TransportDescription {
-  TransportDescription() : ice_mode(ICEMODE_FULL) {}
+  TransportDescription()
+      : ice_mode(ICEMODE_FULL),
+        connection_role(CONNECTIONROLE_NONE) {}
 
-  TransportDescription(const std::string& transport_type,
-                       const std::vector<std::string>& transport_options,
+  TransportDescription(const std::vector<std::string>& transport_options,
                        const std::string& ice_ufrag,
                        const std::string& ice_pwd,
                        IceMode ice_mode,
                        ConnectionRole role,
-                       const talk_base::SSLFingerprint* identity_fingerprint,
+                       const rtc::SSLFingerprint* identity_fingerprint,
                        const Candidates& candidates)
-      : transport_type(transport_type),
-        transport_options(transport_options),
+      : transport_options(transport_options),
         ice_ufrag(ice_ufrag),
         ice_pwd(ice_pwd),
         ice_mode(ice_mode),
         connection_role(role),
         identity_fingerprint(CopyFingerprint(identity_fingerprint)),
         candidates(candidates) {}
-  TransportDescription(const std::string& transport_type,
-                       const std::string& ice_ufrag,
+  TransportDescription(const std::string& ice_ufrag,
                        const std::string& ice_pwd)
-      : transport_type(transport_type),
-        ice_ufrag(ice_ufrag),
+      : ice_ufrag(ice_ufrag),
         ice_pwd(ice_pwd),
         ice_mode(ICEMODE_FULL),
         connection_role(CONNECTIONROLE_NONE) {}
   TransportDescription(const TransportDescription& from)
-      : transport_type(from.transport_type),
-        transport_options(from.transport_options),
+      : transport_options(from.transport_options),
         ice_ufrag(from.ice_ufrag),
         ice_pwd(from.ice_pwd),
         ice_mode(from.ice_mode),
@@ -140,7 +110,6 @@ struct TransportDescription {
     if (this == &from)
       return *this;
 
-    transport_type = from.transport_type;
     transport_options = from.transport_options;
     ice_ufrag = from.ice_ufrag;
     ice_pwd = from.ice_pwd;
@@ -162,25 +131,24 @@ struct TransportDescription {
   }
   bool secure() const { return identity_fingerprint != NULL; }
 
-  static talk_base::SSLFingerprint* CopyFingerprint(
-      const talk_base::SSLFingerprint* from) {
+  static rtc::SSLFingerprint* CopyFingerprint(
+      const rtc::SSLFingerprint* from) {
     if (!from)
       return NULL;
 
-    return new talk_base::SSLFingerprint(*from);
+    return new rtc::SSLFingerprint(*from);
   }
 
-  std::string transport_type;  // xmlns of <transport>
   std::vector<std::string> transport_options;
   std::string ice_ufrag;
   std::string ice_pwd;
   IceMode ice_mode;
   ConnectionRole connection_role;
 
-  talk_base::scoped_ptr<talk_base::SSLFingerprint> identity_fingerprint;
+  rtc::scoped_ptr<rtc::SSLFingerprint> identity_fingerprint;
   Candidates candidates;
 };
 
 }  // namespace cricket
 
-#endif  // TALK_P2P_BASE_TRANSPORTDESCRIPTION_H_
+#endif  // WEBRTC_P2P_BASE_TRANSPORTDESCRIPTION_H_

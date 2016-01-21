@@ -1,39 +1,23 @@
 /*
- * libjingle
- * Copyright 2004--2005, Google Inc.
+ *  Copyright 2004 The WebRTC Project Authors. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef TALK_BASE_BYTEBUFFER_H_
-#define TALK_BASE_BYTEBUFFER_H_
+#ifndef WEBRTC_BASE_BYTEBUFFER_H_
+#define WEBRTC_BASE_BYTEBUFFER_H_
 
 #include <string>
 
-#include "talk/base/basictypes.h"
-#include "talk/base/constructormagic.h"
+#include "webrtc/base/basictypes.h"
+#include "webrtc/base/buffer.h"
+#include "webrtc/base/constructormagic.h"
 
-namespace talk_base {
+namespace rtc {
 
 class ByteBuffer {
  public:
@@ -52,6 +36,8 @@ class ByteBuffer {
   // Initializes buffer from a zero-terminated string.
   explicit ByteBuffer(const char* bytes);
 
+  explicit ByteBuffer(const Buffer& buf);
+
   ~ByteBuffer();
 
   const char* Data() const { return bytes_ + start_; }
@@ -61,11 +47,11 @@ class ByteBuffer {
 
   // Read a next value from the buffer. Return false if there isn't
   // enough data left for the specified type.
-  bool ReadUInt8(uint8* val);
-  bool ReadUInt16(uint16* val);
-  bool ReadUInt24(uint32* val);
-  bool ReadUInt32(uint32* val);
-  bool ReadUInt64(uint64* val);
+  bool ReadUInt8(uint8_t* val);
+  bool ReadUInt16(uint16_t* val);
+  bool ReadUInt24(uint32_t* val);
+  bool ReadUInt32(uint32_t* val);
+  bool ReadUInt64(uint64_t* val);
   bool ReadBytes(char* val, size_t len);
 
   // Appends next |len| bytes from the buffer to |val|. Returns false
@@ -74,11 +60,11 @@ class ByteBuffer {
 
   // Write value to the buffer. Resizes the buffer when it is
   // neccessary.
-  void WriteUInt8(uint8 val);
-  void WriteUInt16(uint16 val);
-  void WriteUInt24(uint32 val);
-  void WriteUInt32(uint32 val);
-  void WriteUInt64(uint64 val);
+  void WriteUInt8(uint8_t val);
+  void WriteUInt16(uint16_t val);
+  void WriteUInt24(uint32_t val);
+  void WriteUInt32(uint32_t val);
+  void WriteUInt64(uint64_t val);
   void WriteString(const std::string& val);
   void WriteBytes(const char* val, size_t len);
 
@@ -128,9 +114,9 @@ class ByteBuffer {
 
   // There are sensible ways to define these, but they aren't needed in our code
   // base.
-  DISALLOW_COPY_AND_ASSIGN(ByteBuffer);
+  RTC_DISALLOW_COPY_AND_ASSIGN(ByteBuffer);
 };
 
-}  // namespace talk_base
+}  // namespace rtc
 
-#endif  // TALK_BASE_BYTEBUFFER_H_
+#endif  // WEBRTC_BASE_BYTEBUFFER_H_

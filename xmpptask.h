@@ -1,39 +1,22 @@
 /*
- * libjingle
- * Copyright 2004--2006, Google Inc.
+ *  Copyright 2004 The WebRTC Project Authors. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef TALK_XMPP_XMPPTASK_H_
-#define TALK_XMPP_XMPPTASK_H_
+#ifndef WEBRTC_LIBJINGLE_XMPP_XMPPTASK_H_
+#define WEBRTC_LIBJINGLE_XMPP_XMPPTASK_H_
 
-#include <string>
 #include <deque>
-#include "talk/base/sigslot.h"
-#include "talk/base/task.h"
-#include "talk/base/taskparent.h"
-#include "talk/xmpp/xmppengine.h"
+#include <string>
+#include "webrtc/libjingle/xmpp/xmppengine.h"
+#include "webrtc/base/sigslot.h"
+#include "webrtc/base/task.h"
+#include "webrtc/base/taskparent.h"
 
 namespace buzz {
 
@@ -84,7 +67,7 @@ class XmppClientInterface {
   virtual void RemoveXmppTask(XmppTask* task) = 0;
   sigslot::signal0<> SignalDisconnected;
 
-  DISALLOW_EVIL_CONSTRUCTORS(XmppClientInterface);
+  RTC_DISALLOW_COPY_AND_ASSIGN(XmppClientInterface);
 };
 
 // XmppTaskParentInterface is the interface require for any parent of
@@ -94,16 +77,16 @@ class XmppClientInterface {
 // We really ought to inherit from a TaskParentInterface, but we tried
 // that and it's way too complicated to change
 // Task/TaskParent/TaskRunner.  For now, this works.
-class XmppTaskParentInterface : public talk_base::Task {
+class XmppTaskParentInterface : public rtc::Task {
  public:
-  explicit XmppTaskParentInterface(talk_base::TaskParent* parent)
+  explicit XmppTaskParentInterface(rtc::TaskParent* parent)
       : Task(parent) {
   }
   virtual ~XmppTaskParentInterface() {}
 
   virtual XmppClientInterface* GetClient() = 0;
 
-  DISALLOW_EVIL_CONSTRUCTORS(XmppTaskParentInterface);
+  RTC_DISALLOW_COPY_AND_ASSIGN(XmppTaskParentInterface);
 };
 
 class XmppTaskBase : public XmppTaskParentInterface {
@@ -121,7 +104,7 @@ class XmppTaskBase : public XmppTaskParentInterface {
  protected:
   XmppTaskParentInterface* parent_;
 
-  DISALLOW_EVIL_CONSTRUCTORS(XmppTaskBase);
+  RTC_DISALLOW_COPY_AND_ASSIGN(XmppTaskBase);
 };
 
 class XmppTask : public XmppTaskBase,
@@ -136,7 +119,7 @@ class XmppTask : public XmppTaskBase,
   std::string task_id() const { return id_; }
   void set_task_id(std::string id) { id_ = id; }
 
-#ifdef _DEBUG
+#if !defined(NDEBUG)
   void set_debug_force_timeout(const bool f) { debug_force_timeout_ = f; }
 #endif
 
@@ -176,14 +159,14 @@ private:
 
   bool stopped_;
   std::deque<XmlElement*> stanza_queue_;
-  talk_base::scoped_ptr<XmlElement> next_stanza_;
+  rtc::scoped_ptr<XmlElement> next_stanza_;
   std::string id_;
 
-#ifdef _DEBUG
+#if !defined(NDEBUG)
   bool debug_force_timeout_;
 #endif
 };
 
 }  // namespace buzz
 
-#endif // TALK_XMPP_XMPPTASK_H_
+#endif // WEBRTC_LIBJINGLE_XMPP_XMPPTASK_H_

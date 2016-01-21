@@ -1,38 +1,21 @@
 /*
- * libjingle
- * Copyright 2004--2010, Google Inc.
+ *  Copyright 2004 The WebRTC Project Authors. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef TALK_BASE_ASYNCSOCKET_H_
-#define TALK_BASE_ASYNCSOCKET_H_
+#ifndef WEBRTC_BASE_ASYNCSOCKET_H_
+#define WEBRTC_BASE_ASYNCSOCKET_H_
 
-#include "talk/base/common.h"
-#include "talk/base/sigslot.h"
-#include "talk/base/socket.h"
+#include "webrtc/base/common.h"
+#include "webrtc/base/sigslot.h"
+#include "webrtc/base/socket.h"
 
-namespace talk_base {
+namespace rtc {
 
 // TODO: Remove Socket and rename AsyncSocket to Socket.
 
@@ -40,9 +23,9 @@ namespace talk_base {
 class AsyncSocket : public Socket {
  public:
   AsyncSocket();
-  virtual ~AsyncSocket();
+  ~AsyncSocket() override;
 
-  virtual AsyncSocket* Accept(SocketAddress* paddr) = 0;
+  AsyncSocket* Accept(SocketAddress* paddr) override = 0;
 
   // SignalReadEvent and SignalWriteEvent use multi_threaded_local to allow
   // access concurrently from different thread.
@@ -65,77 +48,35 @@ class AsyncSocketAdapter : public AsyncSocket, public sigslot::has_slots<> {
   // that will be called during the detached period (usually GetState()), to
   // avoid dereferencing a null pointer.
   explicit AsyncSocketAdapter(AsyncSocket* socket);
-  virtual ~AsyncSocketAdapter();
+  ~AsyncSocketAdapter() override;
   void Attach(AsyncSocket* socket);
-  virtual SocketAddress GetLocalAddress() const {
-    return socket_->GetLocalAddress();
-  }
-  virtual SocketAddress GetRemoteAddress() const {
-    return socket_->GetRemoteAddress();
-  }
-  virtual int Bind(const SocketAddress& addr) {
-    return socket_->Bind(addr);
-  }
-  virtual int Connect(const SocketAddress& addr) {
-    return socket_->Connect(addr);
-  }
-  virtual int Send(const void* pv, size_t cb) {
-    return socket_->Send(pv, cb);
-  }
-  virtual int SendTo(const void* pv, size_t cb, const SocketAddress& addr) {
-    return socket_->SendTo(pv, cb, addr);
-  }
-  virtual int Recv(void* pv, size_t cb) {
-    return socket_->Recv(pv, cb);
-  }
-  virtual int RecvFrom(void* pv, size_t cb, SocketAddress* paddr) {
-    return socket_->RecvFrom(pv, cb, paddr);
-  }
-  virtual int Listen(int backlog) {
-    return socket_->Listen(backlog);
-  }
-  virtual AsyncSocket* Accept(SocketAddress* paddr) {
-    return socket_->Accept(paddr);
-  }
-  virtual int Close() {
-    return socket_->Close();
-  }
-  virtual int GetError() const {
-    return socket_->GetError();
-  }
-  virtual void SetError(int error) {
-    return socket_->SetError(error);
-  }
-  virtual ConnState GetState() const {
-    return socket_->GetState();
-  }
-  virtual int EstimateMTU(uint16* mtu) {
-    return socket_->EstimateMTU(mtu);
-  }
-  virtual int GetOption(Option opt, int* value) {
-    return socket_->GetOption(opt, value);
-  }
-  virtual int SetOption(Option opt, int value) {
-    return socket_->SetOption(opt, value);
-  }
+  SocketAddress GetLocalAddress() const override;
+  SocketAddress GetRemoteAddress() const override;
+  int Bind(const SocketAddress& addr) override;
+  int Connect(const SocketAddress& addr) override;
+  int Send(const void* pv, size_t cb) override;
+  int SendTo(const void* pv, size_t cb, const SocketAddress& addr) override;
+  int Recv(void* pv, size_t cb) override;
+  int RecvFrom(void* pv, size_t cb, SocketAddress* paddr) override;
+  int Listen(int backlog) override;
+  AsyncSocket* Accept(SocketAddress* paddr) override;
+  int Close() override;
+  int GetError() const override;
+  void SetError(int error) override;
+  ConnState GetState() const override;
+  int EstimateMTU(uint16_t* mtu) override;
+  int GetOption(Option opt, int* value) override;
+  int SetOption(Option opt, int value) override;
 
  protected:
-  virtual void OnConnectEvent(AsyncSocket* socket) {
-    SignalConnectEvent(this);
-  }
-  virtual void OnReadEvent(AsyncSocket* socket) {
-    SignalReadEvent(this);
-  }
-  virtual void OnWriteEvent(AsyncSocket* socket) {
-    SignalWriteEvent(this);
-  }
-  virtual void OnCloseEvent(AsyncSocket* socket, int err) {
-    SignalCloseEvent(this, err);
-  }
+  virtual void OnConnectEvent(AsyncSocket* socket);
+  virtual void OnReadEvent(AsyncSocket* socket);
+  virtual void OnWriteEvent(AsyncSocket* socket);
+  virtual void OnCloseEvent(AsyncSocket* socket, int err);
 
   AsyncSocket* socket_;
 };
 
-}  // namespace talk_base
+}  // namespace rtc
 
-#endif  // TALK_BASE_ASYNCSOCKET_H_
+#endif  // WEBRTC_BASE_ASYNCSOCKET_H_

@@ -1,44 +1,27 @@
 /*
- * libjingle
- * Copyright 2011, Google Inc.
+ *  Copyright 2011 The WebRTC Project Authors. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef TALK_APP_BASE_REFCOUNT_H_
-#define TALK_APP_BASE_REFCOUNT_H_
+#ifndef WEBRTC_BASE_REFCOUNT_H_
+#define WEBRTC_BASE_REFCOUNT_H_
 
 #include <string.h>
 
-#include "talk/base/criticalsection.h"
+#include "webrtc/base/atomicops.h"
 
-namespace talk_base {
+namespace rtc {
 
 // Reference count interface.
 class RefCountInterface {
  public:
-  virtual int AddRef() = 0;
-  virtual int Release() = 0;
+  virtual int AddRef() const = 0;
+  virtual int Release() const = 0;
  protected:
   virtual ~RefCountInterface() {}
 };
@@ -71,25 +54,76 @@ class RefCountedObject : public T {
       : T(p1, p2, p3, p4, p5), ref_count_(0) {
   }
 
-  virtual int AddRef() {
-    return talk_base::AtomicOps::Increment(&ref_count_);
+  template<typename P1, typename P2, typename P3, typename P4, typename P5,
+           typename P6>
+  RefCountedObject(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6)
+      : T(p1, p2, p3, p4, p5, p6), ref_count_(0) {
   }
 
-  virtual int Release() {
-    int count = talk_base::AtomicOps::Decrement(&ref_count_);
+  template<typename P1, typename P2, typename P3, typename P4, typename P5,
+           typename P6, typename P7>
+  RefCountedObject(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7)
+      : T(p1, p2, p3, p4, p5, p6, p7), ref_count_(0) {
+  }
+
+  template<typename P1, typename P2, typename P3, typename P4, typename P5,
+           typename P6, typename P7, typename P8>
+  RefCountedObject(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8)
+      : T(p1, p2, p3, p4, p5, p6, p7, p8), ref_count_(0) {
+  }
+
+  template<typename P1, typename P2, typename P3, typename P4, typename P5,
+           typename P6, typename P7, typename P8, typename P9>
+  RefCountedObject(
+      P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9)
+  : T(p1, p2, p3, p4, p5, p6, p7, p8, p9), ref_count_(0) {
+  }
+
+  template<typename P1, typename P2, typename P3, typename P4, typename P5,
+           typename P6, typename P7, typename P8, typename P9, typename P10>
+  RefCountedObject(
+      P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10)
+  : T(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10), ref_count_(0) {
+  }
+
+  template<typename P1, typename P2, typename P3, typename P4, typename P5,
+           typename P6, typename P7, typename P8, typename P9, typename P10,
+           typename P11>
+  RefCountedObject(
+      P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10,
+      P11 p11)
+  : T(p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11), ref_count_(0) {
+  }
+
+  virtual int AddRef() const {
+    return AtomicOps::Increment(&ref_count_);
+  }
+
+  virtual int Release() const {
+    int count = AtomicOps::Decrement(&ref_count_);
     if (!count) {
       delete this;
     }
     return count;
   }
 
+  // Return whether the reference count is one. If the reference count is used
+  // in the conventional way, a reference count of 1 implies that the current
+  // thread owns the reference and no other thread shares it. This call
+  // performs the test for a reference count of one, and performs the memory
+  // barrier needed for the owning thread to act on the object, knowing that it
+  // has exclusive access to the object.
+  virtual bool HasOneRef() const {
+    return AtomicOps::AcquireLoad(&ref_count_) == 1;
+  }
+
  protected:
   virtual ~RefCountedObject() {
   }
 
-  int ref_count_;
+  mutable volatile int ref_count_;
 };
 
-}  // namespace talk_base
+}  // namespace rtc
 
-#endif  // TALK_APP_BASE_REFCOUNT_H_
+#endif  // WEBRTC_BASE_REFCOUNT_H_

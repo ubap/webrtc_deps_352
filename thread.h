@@ -1,54 +1,40 @@
 /*
- * libjingle
- * Copyright 2004 Google Inc.
+ *  Copyright 2004 The WebRTC Project Authors. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- *  1. Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- *  2. Redistributions in binary form must reproduce the above copyright notice,
- *     this list of conditions and the following disclaimer in the documentation
- *     and/or other materials provided with the distribution.
- *  3. The name of the author may not be used to endorse or promote products
- *     derived from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
- * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  Use of this source code is governed by a BSD-style license
+ *  that can be found in the LICENSE file in the root of the source
+ *  tree. An additional intellectual property rights grant can be found
+ *  in the file PATENTS.  All contributing project authors may
+ *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef TALK_BASE_THREAD_H_
-#define TALK_BASE_THREAD_H_
+#ifndef WEBRTC_BASE_THREAD_H_
+#define WEBRTC_BASE_THREAD_H_
 
 #include <algorithm>
 #include <list>
 #include <string>
 #include <vector>
 
-#ifdef POSIX
+#if defined(WEBRTC_POSIX)
 #include <pthread.h>
 #endif
-#include "talk/base/constructormagic.h"
-#include "talk/base/messagequeue.h"
+#include "webrtc/base/constructormagic.h"
+#include "webrtc/base/event.h"
+#include "webrtc/base/messagequeue.h"
 
-#ifdef WIN32
-#include "talk/base/win32.h"
+#if defined(WEBRTC_WIN)
+#include "webrtc/base/win32.h"
 #endif
 
-namespace talk_base {
+namespace rtc {
 
 class Thread;
 
 class ThreadManager {
  public:
+  static const int kForever = -1;
+
   ThreadManager();
   ~ThreadManager();
 
@@ -74,15 +60,15 @@ class ThreadManager {
   void UnwrapCurrentThread();
 
  private:
-#ifdef POSIX
+#if defined(WEBRTC_POSIX)
   pthread_key_t key_;
 #endif
 
-#ifdef WIN32
+#if defined(WEBRTC_WIN)
   DWORD key_;
 #endif
 
-  DISALLOW_COPY_AND_ASSIGN(ThreadManager);
+  RTC_DISALLOW_COPY_AND_ASSIGN(ThreadManager);
 };
 
 struct _SendMessage {
@@ -90,13 +76,6 @@ struct _SendMessage {
   Thread *thread;
   Message msg;
   bool *ready;
-};
-
-enum ThreadPriority {
-  PRIORITY_IDLE = -1,
-  PRIORITY_NORMAL = 0,
-  PRIORITY_ABOVE_NORMAL = 1,
-  PRIORITY_HIGH = 2,
 };
 
 class Runnable {
@@ -108,7 +87,7 @@ class Runnable {
   Runnable() {}
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(Runnable);
+  RTC_DISALLOW_COPY_AND_ASSIGN(Runnable);
 };
 
 // WARNING! SUBCLASSES MUST CALL Stop() IN THEIR DESTRUCTORS!  See ~Thread().
@@ -120,9 +99,22 @@ class Thread : public MessageQueue {
   // guarantee Stop() is explicitly called before the subclass is destroyed).
   // This is required to avoid a data race between the destructor modifying the
   // vtable, and the Thread::PreRun calling the virtual method Run().
-  virtual ~Thread();
+  ~Thread() override;
 
   static Thread* Current();
+
+  // Used to catch performance regressions. Use this to disallow blocking calls
+  // (Invoke) for a given scope.  If a synchronous call is made while this is in
+  // effect, an assert will be triggered.
+  // Note that this is a single threaded class.
+  class ScopedDisallowBlockingCalls {
+   public:
+    ScopedDisallowBlockingCalls();
+    ~ScopedDisallowBlockingCalls();
+   private:
+    Thread* const thread_;
+    const bool previous_state_;
+  };
 
   bool IsCurrent() const {
     return Current() == this;
@@ -138,19 +130,8 @@ class Thread : public MessageQueue {
   const std::string& name() const { return name_; }
   bool SetName(const std::string& name, const void* obj);
 
-  // Sets the thread's priority. Must be called before Start().
-  ThreadPriority priority() const { return priority_; }
-  bool SetPriority(ThreadPriority priority);
-
   // Starts the execution of the thread.
-  bool started() const { return started_; }
   bool Start(Runnable* runnable = NULL);
-
-  // Used for fire-and-forget threads.  Deletes this thread object when the
-  // Run method returns.
-  void Release() {
-    delete_self_when_complete_ = true;
-  }
 
   // Tells the thread to stop and waits until it is joined.
   // Never call Stop on the current thread.  Instead use the inherited Quit
@@ -163,25 +144,31 @@ class Thread : public MessageQueue {
   // ProcessMessages occasionally.
   virtual void Run();
 
-  virtual void Send(MessageHandler *phandler, uint32 id = 0,
-      MessageData *pdata = NULL);
+  virtual void Send(MessageHandler* phandler,
+                    uint32_t id = 0,
+                    MessageData* pdata = NULL);
 
   // Convenience method to invoke a functor on another thread.  Caller must
   // provide the |ReturnT| template argument, which cannot (easily) be deduced.
   // Uses Send() internally, which blocks the current thread until execution
   // is complete.
   // Ex: bool result = thread.Invoke<bool>(&MyFunctionReturningBool);
+  // NOTE: This function can only be called when synchronous calls are allowed.
+  // See ScopedDisallowBlockingCalls for details.
   template <class ReturnT, class FunctorT>
   ReturnT Invoke(const FunctorT& functor) {
+    InvokeBegin();
     FunctorMessageHandler<ReturnT, FunctorT> handler(functor);
     Send(&handler);
+    InvokeEnd();
     return handler.result();
   }
 
   // From MessageQueue
-  virtual void Clear(MessageHandler *phandler, uint32 id = MQID_ANY,
-                     MessageList* removed = NULL);
-  virtual void ReceiveSends();
+  void Clear(MessageHandler* phandler,
+             uint32_t id = MQID_ANY,
+             MessageList* removed = NULL) override;
+  void ReceiveSends() override;
 
   // ProcessMessages will process I/O and dispatch messages until:
   //  1) cms milliseconds have elapsed (returns true)
@@ -196,31 +183,52 @@ class Thread : public MessageQueue {
   // You cannot call Start on non-owned threads.
   bool IsOwned();
 
-#ifdef WIN32
+#if defined(WEBRTC_WIN)
   HANDLE GetHandle() const {
     return thread_;
   }
   DWORD GetId() const {
     return thread_id_;
   }
-#elif POSIX
+#elif defined(WEBRTC_POSIX)
   pthread_t GetPThread() {
     return thread_;
   }
 #endif
 
+  // Expose private method running() for tests.
+  //
+  // DANGER: this is a terrible public API.  Most callers that might want to
+  // call this likely do not have enough control/knowledge of the Thread in
+  // question to guarantee that the returned value remains true for the duration
+  // of whatever code is conditionally executing because of the return value!
+  bool RunningForTest() { return running(); }
+
+  // Sets the per-thread allow-blocking-calls flag and returns the previous
+  // value. Must be called on this thread.
+  bool SetAllowBlockingCalls(bool allow);
+
+  // These functions are public to avoid injecting test hooks. Don't call them
+  // outside of tests.
   // This method should be called when thread is created using non standard
-  // method, like derived implementation of talk_base::Thread and it can not be
+  // method, like derived implementation of rtc::Thread and it can not be
   // started by calling Start(). This will set started flag to true and
   // owned to false. This must be called from the current thread.
-  // NOTE: These methods should be used by the derived classes only, added here
-  // only for testing.
   bool WrapCurrent();
   void UnwrapCurrent();
 
  protected:
+  // Same as WrapCurrent except that it never fails as it does not try to
+  // acquire the synchronization access of the thread. The caller should never
+  // call Stop() or Join() on this thread.
+  void SafeWrapCurrent();
+
   // Blocks the calling thread until this thread has terminated.
   void Join();
+
+  static void AssertBlockingIsAllowedOnCurrentThread();
+
+  friend class ScopedDisallowBlockingCalls;
 
  private:
   static void *PreRun(void *pv);
@@ -228,28 +236,47 @@ class Thread : public MessageQueue {
   // ThreadManager calls this instead WrapCurrent() because
   // ThreadManager::Instance() cannot be used while ThreadManager is
   // being created.
-  bool WrapCurrentWithThreadManager(ThreadManager* thread_manager);
+  // The method tries to get synchronization rights of the thread on Windows if
+  // |need_synchronize_access| is true.
+  bool WrapCurrentWithThreadManager(ThreadManager* thread_manager,
+                                    bool need_synchronize_access);
+
+  // Return true if the thread was started and hasn't yet stopped.
+  bool running() { return running_.Wait(0); }
+
+  // Processes received "Send" requests. If |source| is not NULL, only requests
+  // from |source| are processed, otherwise, all requests are processed.
+  void ReceiveSendsFromThread(const Thread* source);
+
+  // If |source| is not NULL, pops the first "Send" message from |source| in
+  // |sendlist_|, otherwise, pops the first "Send" message of |sendlist_|.
+  // The caller must lock |crit_| before calling.
+  // Returns true if there is such a message.
+  bool PopSendMessageFromThread(const Thread* source, _SendMessage* msg);
+
+  // Used for tracking performance of Invoke calls.
+  void InvokeBegin();
+  void InvokeEnd();
 
   std::list<_SendMessage> sendlist_;
   std::string name_;
-  ThreadPriority priority_;
-  bool started_;
+  Event running_;  // Signalled means running.
 
-#ifdef POSIX
+#if defined(WEBRTC_POSIX)
   pthread_t thread_;
 #endif
 
-#ifdef WIN32
+#if defined(WEBRTC_WIN)
   HANDLE thread_;
   DWORD thread_id_;
 #endif
 
   bool owned_;
-  bool delete_self_when_complete_;
+  bool blocking_calls_allowed_;  // By default set to |true|.
 
   friend class ThreadManager;
 
-  DISALLOW_COPY_AND_ASSIGN(Thread);
+  RTC_DISALLOW_COPY_AND_ASSIGN(Thread);
 };
 
 // AutoThread automatically installs itself at construction
@@ -259,14 +286,14 @@ class Thread : public MessageQueue {
 class AutoThread : public Thread {
  public:
   explicit AutoThread(SocketServer* ss = 0);
-  virtual ~AutoThread();
+  ~AutoThread() override;
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(AutoThread);
+  RTC_DISALLOW_COPY_AND_ASSIGN(AutoThread);
 };
 
 // Win32 extension for threads that need to use COM
-#ifdef WIN32
+#if defined(WEBRTC_WIN)
 class ComThread : public Thread {
  public:
   ComThread() {}
@@ -276,7 +303,7 @@ class ComThread : public Thread {
   virtual void Run();
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(ComThread);
+  RTC_DISALLOW_COPY_AND_ASSIGN(ComThread);
 };
 #endif
 
@@ -294,9 +321,9 @@ class SocketServerScope {
  private:
   SocketServer* old_ss_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SocketServerScope);
+  RTC_DISALLOW_IMPLICIT_CONSTRUCTORS(SocketServerScope);
 };
 
-}  // namespace talk_base
+}  // namespace rtc
 
-#endif  // TALK_BASE_THREAD_H_
+#endif  // WEBRTC_BASE_THREAD_H_

@@ -9,13 +9,13 @@
 //* intact.
 //*********************************************************************
 
-#ifndef TALK_BASE_BASE64_H__
-#define TALK_BASE_BASE64_H__
+#ifndef WEBRTC_BASE_BASE64_H__
+#define WEBRTC_BASE_BASE64_H__
 
 #include <string>
 #include <vector>
 
-namespace talk_base {
+namespace rtc {
 
 class Base64
 {
@@ -99,6 +99,6 @@ private:
                                       size_t* data_used);
 };
 
-} // namespace talk_base
+} // namespace rtc
 
-#endif // TALK_BASE_BASE64_H__
+#endif // WEBRTC_BASE_BASE64_H__
